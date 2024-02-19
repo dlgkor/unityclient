@@ -18,36 +18,27 @@ public class Client : MonoBehaviour
     private delegate void PacketHandler(Packet _packet);
     private static Dictionary<int, PacketHandler> packetHandlers;
 
+    public string IP = "192.168.0.16";
+    public int Port = 8888;
+
     TCP tcp;
     UDP udp;
     int clientID;
+
+    private static Client instance = null;
 
     private void ClientIDPacket(Packet _packet)
     {
         clientID = BitConverter.ToInt32(_packet.data);
         Debug.Log($"clientID: {clientID}");
-        udp = new UDP()
-        {
-            clientid = clientID,
-        };
+        udp = new UDP();
         udp.Connect(((IPEndPoint)tcp.socket.Client.LocalEndPoint).Port);
         Debug.Log($"UDP port: {((IPEndPoint)tcp.socket.Client.LocalEndPoint).Port}");
-
-        /*
-        string msg = "udp Test";
-        Packet _Packet = new Packet();
-        _Packet.packetID = 0x1001;
-        _Packet.data = Encoding.ASCII.GetBytes(msg);
-        _Packet.WriteDataSize();
-        udp.SendPacket(_Packet);
-        */
-
-        //Send UDP IP and PORT
-        //make udp object with clientID
     }
 
     private void helloserver(Packet _packet)
     {
+        //move this function to packetmanger class
         Debug.Log(Encoding.ASCII.GetString(_packet.data));
     }
 
@@ -63,7 +54,29 @@ public class Client : MonoBehaviour
         tcp.Connect();
     }
 
-    
+    private void Awake()
+    {
+        if(instance == null)
+        {
+            instance = this;
+            DontDestroyOnLoad(this.gameObject);
+        }
+        else
+        {
+            Destroy(this.gameObject);
+        }
+    }
+
+    public static Client Instance { get { 
+            if(instance == null)
+            {
+                return null;
+            }
+            return instance; 
+        } 
+    }
+
+
     private void Update()
     {
         if (tcp != null)
@@ -95,10 +108,6 @@ public class Client : MonoBehaviour
 
     public class TCP
     {
-        //public string IP = "127.0.0.1";
-        public string IP = "192.168.0.16";
-        public int Port = 8888;
-
         public TcpClient socket;
         private NetworkStream stream;
         private byte[] receiveBuffer;
@@ -122,7 +131,7 @@ public class Client : MonoBehaviour
                 SendBufferSize = dataBufferSize
             };
 
-            socket.BeginConnect(IP, Port, connectCallBack, socket);
+            socket.BeginConnect(Instance.IP, Instance.Port, connectCallBack, socket);
         }
 
         private void connectCallBack(IAsyncResult _result)
@@ -196,22 +205,15 @@ public class Client : MonoBehaviour
 
     public class UDP
     {
-        //public string IP = "127.0.0.1";
-        public string IP = "192.168.0.16";
-        public int Port = 8888;
-
         public UdpClient socket;
         public IPEndPoint endPoint;
 
-        public int clientid { get; set; }
-
-        public bool connected { get; set; }
+        //public int clientid { get; set; }
 
         public UDP()
         {
             socket = null;
-            endPoint = new IPEndPoint(IPAddress.Parse(IP), Port);
-            connected = false;
+            endPoint = new IPEndPoint(IPAddress.Parse(Instance.IP), Instance.Port);
         }
 
         public void Connect(int _localport)
@@ -222,23 +224,16 @@ public class Client : MonoBehaviour
             socket.BeginReceive(ReceiveCallback, null);
 
             Debug.Log("Connected");
-            connected = true;
         }
 
         public void SendPacket(Packet _packet)
         {
-            if (!connected)
-            {
-                Debug.Log("UDP socket not connected");
-                return;
-            }
-
             try
             {
                 if (socket != null)
                 {
-                    byte[] packetBytes = _packet.Serialize(clientid);
-                    Debug.Log($"Sending UDP Packet clientID:{clientid}, size: {packetBytes.Length}");
+                    byte[] packetBytes = _packet.Serialize(Instance.clientID);
+                    Debug.Log($"Sending UDP Packet clientID:{Instance.clientID}, size: {packetBytes.Length}");
                     socket.BeginSend(packetBytes, packetBytes.Length, null, null);
                 }
             }
