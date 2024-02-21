@@ -45,7 +45,7 @@ public class Client : MonoBehaviour
     void Start()
     {
         packetHandlers = new Dictionary<int, PacketHandler>(){
-            {0x1000, ClientIDPacket},
+            {0xffff, ClientIDPacket},
             {0x1001, helloserver}
         };
 
